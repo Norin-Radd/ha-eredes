@@ -105,11 +105,6 @@ Em *Configurar* (roda dentada da integração) escolhe a origem do preço:
 - **Sensor de preço** — um sensor em €/kWh, €/MWh ou c€/kWh com `state_class`;
   só há custo desde que o sensor guarda histórico.
 
-IVA: *Sem IVA*, *23% em tudo* ou *automático* — 6% nos primeiros 200 kWh por cada
-30 dias (300 kWh com *Família numerosa*) e 23% no resto, como nas faturas até 6,9 kVA.
-O limite é contado por mês civil, pela ordem do consumo. Mudar o preço ou o IVA apaga o
-custo calculado e volta a calculá-lo.
-
 O resultado fica na estatística **E-REDES Cost (`<CPE>`)**: no Painel de Energia
 escolhe-a em *Utilizar uma entidade que acompanha os custos totais*. Horas sem preço
 ficam de fora em vez de contarem como custo zero.

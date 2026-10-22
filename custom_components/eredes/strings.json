@@ -57,6 +57,9 @@
       },
       "power": {
         "name": "Power"
+      },
+      "token_expiry": {
+        "name": "Token expiry"
       }
     }
   }

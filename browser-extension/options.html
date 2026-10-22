@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<title>E-REDES → Home Assistant</title>
+<style>
+  :root { color-scheme: light dark; --fg:#1f2937; --muted:#6b7280; --bg:#fff; --accent:#0e7490; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#e5e7eb; --muted:#9ca3af; --bg:#111827; --accent:#22d3ee; } }
+  body { font: 15px system-ui, sans-serif; color: var(--fg); background: var(--bg); max-width: 640px; margin: 32px auto; padding: 0 16px; }
+  input { width: 100%; padding: 8px; box-sizing: border-box; }
+  button { margin-top: 10px; padding: 8px 16px; border: 0; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; }
+  p, li { color: var(--muted); }
+</style>
+</head>
+<body>
+  <h1>E-REDES → Home Assistant</h1>
+  <label for="url">URL do webhook</label>
+  <input id="url" placeholder="http://homeassistant.local:8123/api/webhook/…">
+  <button id="save">Guardar</button>
+  <p id="msg"></p>
+  <ol>
+    <li>O caminho do webhook aparece numa notificação no Home Assistant depois de instalares a versão 1.1.0 da integração.</li>
+    <li>Junta-o ao endereço do teu HA, cola aqui e guarda (o Chrome pede autorização para esse endereço).</li>
+    <li>A partir daí basta fazeres login no Balcão Digital: o token é enviado sozinho.</li>
+  </ol>
+  <script src="options.js"></script>
+</body>
+</html>

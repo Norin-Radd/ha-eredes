@@ -70,6 +70,64 @@ The token will expire after some time (typically when you log out or after exten
 3. Copy the new `aat` cookie value
 4. Enter it in the re-authentication form
 
+## Fork: token entregue por webhook
+
+> Esta secção descreve as alterações deste fork. O login no Balcão Digital continua
+> a ser feito por ti (tem reCAPTCHA e **não** é automatizado); o que deixa de ser
+> manual é copiar o cookie e colá-lo no Home Assistant.
+
+O `aat` dura 91 minutos e não pode ser renovado (ver `docs/adr/0001`). Como a E-REDES
+publica os dados com ~24 h de atraso, não é preciso um token sempre válido: basta
+um token novo de vez em quando para importar tudo o que ficou para trás.
+
+O que muda:
+
+- **Sem pedidos de reautenticação de hora a hora.** Quando o token expira (ou é
+  recusado), a integração deixa de chamar a API, mantém os últimos valores e fica à
+  espera de um token novo.
+- **Webhook** `POST /api/webhook/<id>` com `{"token": "<aat ou cabeçalho Cookie>"}`.
+  O token é validado na E-REDES para o teu CPE antes de ser guardado; depois a
+  integração recarrega e importa as horas em falta para o Painel de Energia. O
+  caminho do webhook aparece numa notificação do HA após a atualização.
+- **Sensor de diagnóstico** `Token expiry` (timestamp), com o atributo `token_valid`.
+- **Extensão Chrome/Edge** em `browser-extension/`: deteta o cookie `aat` quando
+  fazes login e envia-o sozinha para o webhook.
+
+### Instalar a extensão
+
+1. `chrome://extensions` → ativar **Modo de programador** → **Carregar sem
+   compactação** → escolher a pasta `browser-extension`.
+2. Nas opções da extensão, colar o URL completo do webhook, por exemplo
+   `http://homeassistant.local:8123/api/webhook/<id>`, e guardar.
+3. Fazer login em <https://balcaodigital.e-redes.pt>. O ícone da extensão mostra
+   `OK` quando o HA aceitou o token.
+
+### Lembrete para fazer login
+
+```yaml
+automation:
+  - alias: "E-REDES: lembrete de login"
+    triggers:
+      - trigger: template
+        value_template: >
+          {{ states('sensor.e_redes_meter_XXXXXXXX_token_expiry') not in ['unknown', 'unavailable']
+             and now() - as_datetime(states('sensor.e_redes_meter_XXXXXXXX_token_expiry')) > timedelta(days=7) }}
+    actions:
+      - action: notify.mobile_app_pixel_7_pro
+        data:
+          title: "E-REDES"
+          message: "Faz login no Balcão Digital para atualizar os consumos."
+```
+
+### Sem extensão (curl, n8n, …)
+
+Qualquer coisa que tenha o `aat` pode enviá-lo:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{"token":"eyJ..."}' http://homeassistant.local:8123/api/webhook/<id>
+```
+
 ## Energy Dashboard Setup
 
 On first setup the integration imports up to a year of historical consumption into a

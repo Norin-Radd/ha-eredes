@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import base64
+import json
 import logging
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from http.cookies import SimpleCookie
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
@@ -106,6 +108,40 @@ class ERedesClient:
     def _build_cookie_header(cookies: dict[str, str]) -> str:
         """Serialize a cookies dict into a Cookie request header."""
         return "; ".join(f"{k}={v}" for k, v in cookies.items())
+
+    @property
+    def access_token(self) -> str:
+        """Return the bare ``aat`` value currently in use."""
+        return self._aat_token
+
+    @property
+    def token_expires_at(self) -> datetime | None:
+        """Return the ``exp`` claim of the ``aat`` JWT as aware UTC, if readable.
+
+        The signature is not verified: this is only used to avoid sending
+        requests with a token that is already known to be dead (the ``aat``
+        lives a hard 91 minutes — see CONTEXT.md → Access token).
+        """
+        parts = self._aat_token.split(".")
+        if len(parts) != 3:
+            return None
+        try:
+            padded = parts[1] + "=" * (-len(parts[1]) % 4)
+            claims = json.loads(base64.urlsafe_b64decode(padded))
+            return datetime.fromtimestamp(int(claims["exp"]), tz=UTC)
+        except ValueError, KeyError, TypeError:
+            return None
+
+    def token_is_expired(self, margin: timedelta = timedelta(0)) -> bool:
+        """Return True if the token's ``exp`` (minus ``margin``) has passed.
+
+        A token whose expiry cannot be read is assumed to be alive; the API
+        will reject it if it is not.
+        """
+        expires_at = self.token_expires_at
+        if expires_at is None:
+            return False
+        return datetime.now(UTC) >= expires_at - margin
 
     def update_access_token(self, access_token: str) -> None:
         """Update the access token."""

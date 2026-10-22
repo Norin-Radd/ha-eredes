@@ -11,6 +11,7 @@ from homeassistant.const import Platform
 
 from .const import CONF_ACCESS_TOKEN, LEGACY_TOKEN_KEYS
 from .coordinator import ERedesCoordinator
+from .webhook import async_register_token_webhook
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -36,9 +37,14 @@ type ERedesConfigEntry = ConfigEntry[ERedesData]
 async def async_setup_entry(hass: HomeAssistant, entry: ERedesConfigEntry) -> bool:
     """Set up E-REDES from a config entry."""
     _LOGGER.debug("Setting up E-REDES integration")
+
+    # Register the token webhook first, so a new token can always be delivered,
+    # even when the stored one is long dead.
+    async_register_token_webhook(hass, entry)
+
     coordinator = ERedesCoordinator(hass, entry)
 
-    # Fetch initial data
+    # Fetch initial data (never fails on an expired token — see coordinator)
     await coordinator.async_config_entry_first_refresh()
 
     # Store runtime data
@@ -50,7 +56,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ERedesConfigEntry) -> bo
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Schedule historical data import (runs in background)
+    # Backfill history while the token is alive. With a dead token there is
+    # nothing to do: the next token delivered by webhook reloads the entry and
+    # the import resumes from the last stored hour.
+    if not coordinator.token_usable:
+        _LOGGER.debug("Skipping historical import: no usable E-REDES token")
+        return True
+
     hass.async_create_task(
         _async_import_historical_data(hass, entry, coordinator),
         name="eredes_historical_import",

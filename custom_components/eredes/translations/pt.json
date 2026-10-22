@@ -57,6 +57,9 @@
       },
       "power": {
         "name": "Potencia"
+      },
+      "token_expiry": {
+        "name": "Expiração do token"
       }
     }
   }

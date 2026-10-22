@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 
-from .const import CONF_ACCESS_TOKEN
+from .const import CONF_ACCESS_TOKEN, CONF_WEBHOOK_ID
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -21,6 +21,7 @@ TO_REDACT = {
     CONF_PASSWORD,
     CONF_USERNAME,
     CONF_ACCESS_TOKEN,
+    CONF_WEBHOOK_ID,
     "session_cookie",
     "aat_token",
     "aat",
@@ -46,6 +47,12 @@ async def async_get_config_entry_diagnostics(
         "coordinator": {
             "last_update_success": coordinator.last_update_success,
             "update_interval": str(coordinator.update_interval),
+            "token_usable": coordinator.token_usable,
+            "token_expires_at": (
+                exp.isoformat()
+                if (exp := coordinator.client.token_expires_at)
+                else None
+            ),
         },
     }
 

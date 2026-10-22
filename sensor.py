@@ -1,0 +1,185 @@
+"""Sensor platform for E-REDES integration."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
+
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
+)
+from homeassistant.const import EntityCategory, UnitOfEnergy, UnitOfPower
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from .const import DOMAIN, SENSOR_ENERGY, SENSOR_POWER, SENSOR_TOKEN_EXPIRY
+from .coordinator import ERedesCoordinator, ERedesCoordinatorData
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+    from . import ERedesConfigEntry
+
+
+@dataclass(frozen=True, kw_only=True)
+class ERedesSensorEntityDescription(SensorEntityDescription):
+    """Describes E-REDES sensor entity."""
+
+    value_fn: Callable[[ERedesCoordinatorData], float | None]
+
+
+SENSOR_DESCRIPTIONS: tuple[ERedesSensorEntityDescription, ...] = (
+    ERedesSensorEntityDescription(
+        key=SENSOR_ENERGY,
+        translation_key="energy",
+        name="Daily Energy",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        suggested_display_precision=3,
+        value_fn=lambda data: data.today_kwh,  # yesterday's data due to API delay
+    ),
+    ERedesSensorEntityDescription(
+        key=SENSOR_POWER,
+        translation_key="power",
+        name="Power",
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        suggested_display_precision=0,
+        value_fn=lambda data: data.current_power_w,
+    ),
+)
+
+
+async def async_setup_entry(
+    _hass: HomeAssistant,
+    entry: ERedesConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up E-REDES sensor entities."""
+    coordinator = entry.runtime_data.coordinator
+
+    entities: list[SensorEntity] = [
+        ERedesSensor(coordinator, description) for description in SENSOR_DESCRIPTIONS
+    ]
+    entities.append(ERedesTokenExpirySensor(coordinator))
+    async_add_entities(entities)
+
+
+def _device_info(coordinator: ERedesCoordinator) -> DeviceInfo:
+    """Return the shared device info for a meter."""
+    return DeviceInfo(
+        identifiers={(DOMAIN, coordinator.cpe)},
+        name=f"E-REDES Meter {coordinator.cpe[-8:]}",
+        manufacturer="E-REDES",
+        model="Smart Meter",
+        configuration_url="https://balcaodigital.e-redes.pt",
+    )
+
+
+class ERedesSensor(CoordinatorEntity[ERedesCoordinator], SensorEntity):
+    """Representation of an E-REDES sensor."""
+
+    entity_description: ERedesSensorEntityDescription
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: ERedesCoordinator,
+        description: ERedesSensorEntityDescription,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._attr_unique_id = f"{coordinator.cpe}_{description.key}"
+        self._attr_device_info = _device_info(coordinator)
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the state of the sensor."""
+        if self.coordinator.data is None:
+            return None  # type: ignore[unreachable]
+        return self.entity_description.value_fn(self.coordinator.data)
+
+    @property
+    def last_reset(self) -> datetime | None:
+        """Return the last reset time (start of yesterday for energy sensor)."""
+        if self.entity_description.key == SENSOR_ENERGY:
+            # Tie last_reset to the day the value belongs to, so a value kept
+            # while the token is dead is not re-labelled as a newer day.
+            if self.coordinator.data.period_start is not None:
+                return self.coordinator.data.period_start
+            now = datetime.now(UTC)
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            return today_start - timedelta(days=1)
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return super().available and self.coordinator.data is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return extra state attributes."""
+        if self.coordinator.data is None:
+            return None  # type: ignore[unreachable]
+
+        attrs: dict[str, Any] = {
+            "cpe": self.coordinator.cpe,
+            "last_update": self.coordinator.data.last_update.isoformat(),
+            "token_valid": self.coordinator.data.token_valid,
+        }
+
+        if (
+            self.entity_description.key == SENSOR_POWER
+            and self.coordinator.data.last_reading
+        ):
+            attrs["reading_timestamp"] = (
+                self.coordinator.data.last_reading.timestamp.isoformat()
+            )
+
+        return attrs
+
+
+class ERedesTokenExpirySensor(CoordinatorEntity[ERedesCoordinator], SensorEntity):
+    """When the current E-REDES access token expires.
+
+    Useful for automations, e.g. a reminder to log into the Balcão Digital when
+    the token has been dead for a few days.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = SENSOR_TOKEN_EXPIRY
+    _attr_name = "Token expiry"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: ERedesCoordinator) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.cpe}_{SENSOR_TOKEN_EXPIRY}"
+        self._attr_device_info = _device_info(coordinator)
+
+    @property
+    def available(self) -> bool:
+        """Always available: an expired token is exactly what this reports."""
+        return True
+
+    @property
+    def native_value(self) -> datetime | None:
+        """Return the token's expiry instant."""
+        return self.coordinator.client.token_expires_at
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return whether the token is still usable."""
+        return {"token_valid": self.coordinator.token_usable}

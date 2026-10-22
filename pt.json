@@ -1,0 +1,99 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Conta E-REDES",
+        "description": "Introduza o token e codigo CPE do Balcao Digital E-REDES.\n\nPara obter o token:\n1. Aceda a {setup_url}\n2. Abra as ferramentas de desenvolvimento (F12)\n3. Va a Application > Cookies\n4. Copie o valor do cookie 'aat'",
+        "data": {
+          "access_token": "Token AAT",
+          "cpe": "Codigo CPE"
+        },
+        "data_description": {
+          "access_token": "O valor do cookie 'aat' da sua sessao no browser. O cabecalho Cookie completo tambem e aceite.",
+          "cpe": "O codigo CPE do seu contador (ex: PT0002000012345678XX)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-autenticar com E-REDES",
+        "description": "A sua sessao E-REDES expirou. Por favor introduza um novo token para o CPE {cpe}.\n\nPara obter o token:\n1. Aceda a {setup_url}\n2. Abra as ferramentas de desenvolvimento (F12)\n3. Va a Application > Cookies\n4. Copie o valor do cookie 'aat'",
+        "data": {
+          "access_token": "Token AAT"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigurar E-REDES",
+        "description": "Atualize a sua configuracao E-REDES.",
+        "data": {
+          "access_token": "Token AAT",
+          "cpe": "Codigo CPE"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Token invalido ou expirado",
+      "cannot_connect": "Nao foi possivel ligar ao E-REDES",
+      "unknown": "Ocorreu um erro inesperado"
+    },
+    "abort": {
+      "already_configured": "Este CPE ja esta configurado",
+      "reauth_successful": "Re-autenticacao bem sucedida",
+      "reconfigure_successful": "Reconfiguracao bem sucedida"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "E-REDES – custo",
+        "description": "Valoriza cada leitura de 15 minutos importada com o preço desse mesmo intervalo e guarda o resultado na estatística 'E-REDES Cost', para escolheres no Painel de Energia em 'Utilizar uma entidade que acompanha os custos totais'.\\n\\n• Coopérnico: preço indexado Coopérnico Único ((OMIE + ERC) × perdas + K + TAR + TSE) a partir dos dados abertos do Tiago Felícia (dados.tiagofelicia.pt), com histórico do ano corrente.\\n• Sensor de preço: um sensor em €/kWh com estatísticas de longo prazo; só há preços desde que o sensor existe.",
+        "data": {
+          "price_source": "Origem do preço",
+          "tariff_cycle": "Opção horária (Coopérnico)",
+          "price_entity": "Sensor de preço (só para 'Sensor de preço')",
+          "vat_mode": "IVA",
+          "large_family": "Família numerosa (300 kWh a 6%)"
+        }
+      }
+    },
+    "abort": {
+      "no_options": "Nao existem opcoes disponiveis para esta integracao"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "energy": {
+        "name": "Energia Diaria"
+      },
+      "power": {
+        "name": "Potencia"
+      },
+      "token_expiry": {
+        "name": "Expiração do token"
+      }
+    }
+  },
+  "selector": {
+    "price_source": {
+      "options": {
+        "none": "Não calcular custo",
+        "coopernico_tf": "Coopérnico Único (dados Tiago Felícia)",
+        "sensor": "Sensor de preço"
+      }
+    },
+    "tariff_cycle": {
+      "options": {
+        "simples": "Simples",
+        "bi_diario": "Bi-horário – ciclo diário",
+        "bi_semanal": "Bi-horário – ciclo semanal",
+        "tri_diario": "Tri-horário – ciclo diário",
+        "tri_semanal": "Tri-horário – ciclo semanal"
+      }
+    },
+    "vat_mode": {
+      "options": {
+        "none": "Sem IVA",
+        "auto": "6% nos primeiros 200 kWh por 30 dias, 23% no resto (até 6,9 kVA)",
+        "full": "23% em tudo"
+      }
+    }
+  }
+}

@@ -8,6 +8,14 @@ DOMAIN: Final = "eredes"
 CONF_CPE: Final = "cpe"
 CONF_ACCESS_TOKEN: Final = "access_token"
 CONF_WEBHOOK_ID: Final = "webhook_id"
+CONF_PRICE_ENTITY: Final = "price_entity"
+CONF_PRICE_SOURCE: Final = "price_source"
+CONF_TARIFF_CYCLE: Final = "tariff_cycle"
+CONF_VAT_PERCENT: Final = "vat_percent"
+
+PRICE_SOURCE_NONE: Final = "none"
+PRICE_SOURCE_COOPERNICO: Final = "coopernico_tf"
+PRICE_SOURCE_SENSOR: Final = "sensor"
 
 # Legacy config keys migrated to CONF_ACCESS_TOKEN (see async_migrate_entry)
 LEGACY_TOKEN_KEYS: Final = ("session_cookie", "aat_token")

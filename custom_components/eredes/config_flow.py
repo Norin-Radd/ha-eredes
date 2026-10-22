@@ -11,12 +11,27 @@ from homeassistant.config_entries import (
     ConfigFlow,
     ConfigFlowResult,
     OptionsFlow,
+    OptionsFlowWithReload,
 )
 from homeassistant.core import callback
+from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import BASE_URL, CONF_ACCESS_TOKEN, CONF_CPE, DOMAIN
+from .const import (
+    BASE_URL,
+    CONF_ACCESS_TOKEN,
+    CONF_CPE,
+    CONF_PRICE_ENTITY,
+    CONF_PRICE_SOURCE,
+    CONF_TARIFF_CYCLE,
+    CONF_VAT_PERCENT,
+    DOMAIN,
+    PRICE_SOURCE_COOPERNICO,
+    PRICE_SOURCE_NONE,
+    PRICE_SOURCE_SENSOR,
+)
 from .eredes_api import ERedesAuthenticationError, ERedesClient, ERedesConnectionError
+from .tariff_tf import CYCLES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -192,12 +207,61 @@ class ERedesConfigFlow(ConfigFlow, domain=DOMAIN):
         return ERedesOptionsFlow()
 
 
-class ERedesOptionsFlow(OptionsFlow):
-    """Handle E-REDES options."""
+class ERedesOptionsFlow(OptionsFlowWithReload):
+    """Handle E-REDES options (the entry reloads when they are saved)."""
 
     async def async_step_init(
-        self, _user_input: dict[str, Any] | None = None
+        self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Manage the options."""
-        # Currently no options, but this allows future expansion
-        return self.async_abort(reason="no_options")
+        """Choose how the imported consumption is priced."""
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        options = self.config_entry.options
+        default_source = options.get(CONF_PRICE_SOURCE) or (
+            PRICE_SOURCE_SENSOR if options.get(CONF_PRICE_ENTITY) else PRICE_SOURCE_NONE
+        )
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_PRICE_SOURCE, default=default_source
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[
+                            PRICE_SOURCE_NONE,
+                            PRICE_SOURCE_COOPERNICO,
+                            PRICE_SOURCE_SENSOR,
+                        ],
+                        translation_key=CONF_PRICE_SOURCE,
+                        mode=selector.SelectSelectorMode.LIST,
+                    )
+                ),
+                vol.Required(
+                    CONF_TARIFF_CYCLE,
+                    default=options.get(CONF_TARIFF_CYCLE, "bi_diario"),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=list(CYCLES),
+                        translation_key=CONF_TARIFF_CYCLE,
+                    )
+                ),
+                vol.Required(
+                    CONF_VAT_PERCENT, default=options.get(CONF_VAT_PERCENT, 0)
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=0,
+                        max=23,
+                        step=1,
+                        unit_of_measurement="%",
+                        mode=selector.NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Optional(
+                    CONF_PRICE_ENTITY,
+                    description={"suggested_value": options.get(CONF_PRICE_ENTITY)},
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=schema)

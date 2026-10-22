@@ -43,7 +43,14 @@
   "options": {
     "step": {
       "init": {
-        "title": "E-REDES Options"
+        "title": "E-REDES – cost",
+        "description": "Prices each imported 15-minute reading for its own interval and stores the result as the statistic 'E-REDES Cost', to select in the Energy Dashboard as 'an entity tracking the total costs'.\\n\\n• Coopérnico: Coopérnico Único indexed price ((OMIE + ERC) × losses + K + TAR + TSE) from Tiago Felícia's open data (dados.tiagofelicia.pt), with history for the current year.\\n• Price sensor: a sensor in €/kWh with long-term statistics; only prices recorded since it exists.",
+        "data": {
+          "price_source": "Price source",
+          "tariff_cycle": "Time-of-use option (Coopérnico)",
+          "vat_percent": "VAT added to the price",
+          "price_entity": "Price sensor (only for 'Price sensor')"
+        }
       }
     },
     "abort": {
@@ -60,6 +67,24 @@
       },
       "token_expiry": {
         "name": "Token expiry"
+      }
+    }
+  },
+  "selector": {
+    "price_source": {
+      "options": {
+        "none": "Do not compute cost",
+        "coopernico_tf": "Coopérnico Único (Tiago Felícia data)",
+        "sensor": "Price sensor"
+      }
+    },
+    "tariff_cycle": {
+      "options": {
+        "simples": "Simple",
+        "bi_diario": "Two-rate, daily cycle",
+        "bi_semanal": "Two-rate, weekly cycle",
+        "tri_diario": "Three-rate, daily cycle",
+        "tri_semanal": "Three-rate, weekly cycle"
       }
     }
   }

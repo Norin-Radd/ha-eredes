@@ -43,7 +43,14 @@
   "options": {
     "step": {
       "init": {
-        "title": "Opcoes E-REDES"
+        "title": "E-REDES – custo",
+        "description": "Valoriza cada leitura de 15 minutos importada com o preço desse mesmo intervalo e guarda o resultado na estatística 'E-REDES Cost', para escolheres no Painel de Energia em 'Utilizar uma entidade que acompanha os custos totais'.\\n\\n• Coopérnico: preço indexado Coopérnico Único ((OMIE + ERC) × perdas + K + TAR + TSE) a partir dos dados abertos do Tiago Felícia (dados.tiagofelicia.pt), com histórico do ano corrente.\\n• Sensor de preço: um sensor em €/kWh com estatísticas de longo prazo; só há preços desde que o sensor existe.",
+        "data": {
+          "price_source": "Origem do preço",
+          "tariff_cycle": "Opção horária (Coopérnico)",
+          "vat_percent": "IVA a acrescentar ao preço",
+          "price_entity": "Sensor de preço (só para 'Sensor de preço')"
+        }
       }
     },
     "abort": {
@@ -60,6 +67,24 @@
       },
       "token_expiry": {
         "name": "Expiração do token"
+      }
+    }
+  },
+  "selector": {
+    "price_source": {
+      "options": {
+        "none": "Não calcular custo",
+        "coopernico_tf": "Coopérnico Único (dados Tiago Felícia)",
+        "sensor": "Sensor de preço"
+      }
+    },
+    "tariff_cycle": {
+      "options": {
+        "simples": "Simples",
+        "bi_diario": "Bi-horário – ciclo diário",
+        "bi_semanal": "Bi-horário – ciclo semanal",
+        "tri_diario": "Tri-horário – ciclo diário",
+        "tri_semanal": "Tri-horário – ciclo semanal"
       }
     }
   }

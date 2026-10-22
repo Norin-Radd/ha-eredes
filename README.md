@@ -93,6 +93,22 @@ O que muda:
 - **Extensão Chrome/Edge** em `browser-extension/`: deteta o cookie `aat` quando
   fazes login e envia-o sozinha para o webhook.
 
+### Custo com tarifário indexado
+
+Em *Configurar* (roda dentada da integração) escolhe a origem do preço:
+
+- **Coopérnico Único (dados Tiago Felícia)** — preço quarto-horário
+  `(OMIE + ERC) × perdas + K + TAR + TSE`, calculado com os dados abertos de
+  [dados.tiagofelicia.pt](https://dados.tiagofelicia.pt) (CC BY 4.0). Tem histórico,
+  por isso o custo é calculado desde 1 de janeiro do ano corrente (as TAR publicadas
+  são só as em vigor). Escolhe também a opção horária e o IVA a acrescentar.
+- **Sensor de preço** — um sensor em €/kWh, €/MWh ou c€/kWh com `state_class`;
+  só há custo desde que o sensor guarda histórico.
+
+O resultado fica na estatística **E-REDES Cost (`<CPE>`)**: no Painel de Energia
+escolhe-a em *Utilizar uma entidade que acompanha os custos totais*. Horas sem preço
+ficam de fora em vez de contarem como custo zero.
+
 ### Instalar a extensão
 
 1. `chrome://extensions` → ativar **Modo de programador** → **Carregar sem

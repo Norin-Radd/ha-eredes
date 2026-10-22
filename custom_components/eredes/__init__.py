@@ -9,7 +9,16 @@ from typing import TYPE_CHECKING
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 
-from .const import CONF_ACCESS_TOKEN, LEGACY_TOKEN_KEYS
+from .const import (
+    CONF_ACCESS_TOKEN,
+    CONF_PRICE_ENTITY,
+    CONF_PRICE_SOURCE,
+    CONF_TARIFF_CYCLE,
+    CONF_VAT_PERCENT,
+    LEGACY_TOKEN_KEYS,
+    PRICE_SOURCE_NONE,
+    PRICE_SOURCE_SENSOR,
+)
 from .coordinator import ERedesCoordinator
 from .webhook import async_register_token_webhook
 
@@ -101,15 +110,33 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def _async_import_historical_data(
     hass: HomeAssistant,
-    _entry: ERedesConfigEntry,
+    entry: ERedesConfigEntry,
     coordinator: ERedesCoordinator,
 ) -> None:
     """Import historical data in the background."""
-    from .historical import async_import_historical_data  # noqa: PLC0415
+    from .historical import (  # noqa: PLC0415
+        PriceConfig,
+        async_import_historical_data,
+    )
+
+    options = entry.options
+    source = options.get(CONF_PRICE_SOURCE) or (
+        PRICE_SOURCE_SENSOR if options.get(CONF_PRICE_ENTITY) else PRICE_SOURCE_NONE
+    )
+    price = (
+        None
+        if source == PRICE_SOURCE_NONE
+        else PriceConfig(
+            source=source,
+            entity=options.get(CONF_PRICE_ENTITY),
+            cycle=options.get(CONF_TARIFF_CYCLE, "bi_diario"),
+            vat_percent=float(options.get(CONF_VAT_PERCENT, 0)),
+        )
+    )
 
     _LOGGER.debug("Starting historical data import for CPE %s", coordinator.cpe[-8:])
     try:
-        await async_import_historical_data(hass, coordinator)
+        await async_import_historical_data(hass, coordinator, price)
         _LOGGER.debug("Historical data import completed")
     except Exception:
         _LOGGER.exception("Failed to import historical data")

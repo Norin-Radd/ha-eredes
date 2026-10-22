@@ -17,6 +17,7 @@ from homeassistant.components.recorder.statistics import (
     get_last_statistics,
 )
 from homeassistant.const import UnitOfEnergy
+from homeassistant.util.unit_conversion import EnergyConverter
 
 from .const import DOMAIN
 
@@ -38,6 +39,24 @@ TOTAL_HISTORY_DAYS = 365  # 1 year
 # so the window comfortably covers it despite any timezone skew. Aggregation
 # then drops everything up to and including that hour, so nothing is re-counted.
 REFETCH_BUFFER_DAYS = 2
+
+
+def _metadata(cpe: str) -> StatisticMetaData:
+    """Return the metadata of a CPE's energy statistic.
+
+    ``unit_class`` must be ``energy``: Home Assistant's Energy Dashboard only
+    offers statistics of that unit class as grid sources, so ``None`` hides it.
+    """
+    return StatisticMetaData(
+        has_mean=False,
+        has_sum=True,
+        mean_type=StatisticMeanType.NONE,
+        name=f"E-REDES Energy ({cpe[-8:]})",
+        source=DOMAIN,
+        statistic_id=statistic_id(cpe),
+        unit_class=EnergyConverter.UNIT_CLASS,
+        unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+    )
 
 
 def statistic_id(cpe: str) -> str:
@@ -129,6 +148,7 @@ async def async_import_historical_data(
 
     if not all_readings:
         _LOGGER.debug("No historical data found to import")
+        _async_refresh_metadata(hass, coordinator.cpe, stat_id, after)
         return
 
     # Sort readings by timestamp
@@ -140,21 +160,11 @@ async def async_import_historical_data(
 
     if not statistics:
         _LOGGER.debug("No statistics generated from %d readings", len(all_readings))
+        _async_refresh_metadata(hass, coordinator.cpe, stat_id, after)
         return
 
-    metadata = StatisticMetaData(
-        has_mean=False,
-        has_sum=True,
-        mean_type=StatisticMeanType.NONE,
-        name=f"E-REDES Energy ({coordinator.cpe[-8:]})",
-        source=DOMAIN,
-        statistic_id=stat_id,
-        unit_class=None,
-        unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-    )
-
     try:
-        async_add_external_statistics(hass, metadata, statistics)
+        async_add_external_statistics(hass, _metadata(coordinator.cpe), statistics)
         _LOGGER.debug(
             "Imported %d hourly stats (%.3f kWh) for %s",
             len(statistics),
@@ -163,6 +173,24 @@ async def async_import_historical_data(
         )
     except Exception:
         _LOGGER.exception("Failed to add external statistics for %s", stat_id)
+
+
+def _async_refresh_metadata(
+    hass: HomeAssistant, cpe: str, stat_id: str, after: datetime | None
+) -> None:
+    """Rewrite an existing statistic's metadata even when no new hours arrived.
+
+    Statistics created by older versions carry ``unit_class=None`` and are
+    therefore invisible in the Energy Dashboard picker; the recorder updates
+    metadata on every import, so an empty import is enough to fix them.
+    """
+    if after is None:
+        return  # nothing stored yet, so there is no metadata to fix
+    try:
+        async_add_external_statistics(hass, _metadata(cpe), [])
+        _LOGGER.debug("Refreshed metadata for %s", stat_id)
+    except Exception:
+        _LOGGER.exception("Failed to refresh metadata for %s", stat_id)
 
 
 def _aggregate_to_hourly_statistics(

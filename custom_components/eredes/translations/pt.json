@@ -48,8 +48,9 @@
         "data": {
           "price_source": "Origem do preço",
           "tariff_cycle": "Opção horária (Coopérnico)",
-          "vat_percent": "IVA a acrescentar ao preço",
-          "price_entity": "Sensor de preço (só para 'Sensor de preço')"
+          "price_entity": "Sensor de preço (só para 'Sensor de preço')",
+          "vat_mode": "IVA",
+          "large_family": "Família numerosa (300 kWh a 6%)"
         }
       }
     },
@@ -85,6 +86,13 @@
         "bi_semanal": "Bi-horário – ciclo semanal",
         "tri_diario": "Tri-horário – ciclo diário",
         "tri_semanal": "Tri-horário – ciclo semanal"
+      }
+    },
+    "vat_mode": {
+      "options": {
+        "none": "Sem IVA",
+        "auto": "6% nos primeiros 200 kWh por 30 dias, 23% no resto (até 6,9 kVA)",
+        "full": "23% em tudo"
       }
     }
   }

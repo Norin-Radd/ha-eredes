@@ -13,7 +13,7 @@ from homeassistant.config_entries import (
     OptionsFlow,
     OptionsFlowWithReload,
 )
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -21,14 +21,19 @@ from .const import (
     BASE_URL,
     CONF_ACCESS_TOKEN,
     CONF_CPE,
+    CONF_LARGE_FAMILY,
     CONF_PRICE_ENTITY,
     CONF_PRICE_SOURCE,
     CONF_TARIFF_CYCLE,
+    CONF_VAT_MODE,
     CONF_VAT_PERCENT,
     DOMAIN,
     PRICE_SOURCE_COOPERNICO,
     PRICE_SOURCE_NONE,
     PRICE_SOURCE_SENSOR,
+    VAT_AUTO,
+    VAT_FULL,
+    VAT_NONE,
 )
 from .eredes_api import ERedesAuthenticationError, ERedesClient, ERedesConnectionError
 from .tariff_tf import CYCLES
@@ -207,6 +212,32 @@ class ERedesConfigFlow(ConfigFlow, domain=DOMAIN):
         return ERedesOptionsFlow()
 
 
+_COST_KEYS = (
+    CONF_PRICE_SOURCE,
+    CONF_TARIFF_CYCLE,
+    CONF_VAT_MODE,
+    CONF_LARGE_FAMILY,
+    CONF_PRICE_ENTITY,
+)
+
+
+def _cost_settings(options: dict[str, Any]) -> tuple[Any, ...]:
+    return tuple(options.get(key) for key in _COST_KEYS)
+
+
+async def _async_clear_cost(hass: HomeAssistant, cpe: str) -> None:
+    """Delete the cost statistic so the next import rebuilds it."""
+    from homeassistant.components.recorder import (  # type: ignore[attr-defined]  # noqa: PLC0415
+        get_instance,
+    )
+
+    from .historical import cost_statistic_id  # noqa: PLC0415
+
+    instance = get_instance(hass)
+    instance.async_clear_statistics([cost_statistic_id(cpe)])
+    await instance.async_block_till_done()
+
+
 class ERedesOptionsFlow(OptionsFlowWithReload):
     """Handle E-REDES options (the entry reloads when they are saved)."""
 
@@ -215,6 +246,11 @@ class ERedesOptionsFlow(OptionsFlowWithReload):
     ) -> ConfigFlowResult:
         """Choose how the imported consumption is priced."""
         if user_input is not None:
+            if _cost_settings(user_input) != _cost_settings(
+                dict(self.config_entry.options)
+            ):
+                # Different prices or VAT: recompute the cost from scratch.
+                await _async_clear_cost(self.hass, self.config_entry.data[CONF_CPE])
             return self.async_create_entry(data=user_input)
 
         options = self.config_entry.options
@@ -246,16 +282,24 @@ class ERedesOptionsFlow(OptionsFlowWithReload):
                     )
                 ),
                 vol.Required(
-                    CONF_VAT_PERCENT, default=options.get(CONF_VAT_PERCENT, 0)
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=0,
-                        max=23,
-                        step=1,
-                        unit_of_measurement="%",
-                        mode=selector.NumberSelectorMode.BOX,
+                    CONF_VAT_MODE,
+                    default=options.get(CONF_VAT_MODE)
+                    or (
+                        VAT_FULL
+                        if float(options.get(CONF_VAT_PERCENT, 0))
+                        else VAT_NONE
+                    ),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[VAT_NONE, VAT_AUTO, VAT_FULL],
+                        translation_key=CONF_VAT_MODE,
+                        mode=selector.SelectSelectorMode.LIST,
                     )
                 ),
+                vol.Required(
+                    CONF_LARGE_FAMILY,
+                    default=bool(options.get(CONF_LARGE_FAMILY, False)),
+                ): selector.BooleanSelector(),
                 vol.Optional(
                     CONF_PRICE_ENTITY,
                     description={"suggested_value": options.get(CONF_PRICE_ENTITY)},

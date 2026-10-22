@@ -11,7 +11,13 @@ CONF_WEBHOOK_ID: Final = "webhook_id"
 CONF_PRICE_ENTITY: Final = "price_entity"
 CONF_PRICE_SOURCE: Final = "price_source"
 CONF_TARIFF_CYCLE: Final = "tariff_cycle"
-CONF_VAT_PERCENT: Final = "vat_percent"
+CONF_VAT_PERCENT: Final = "vat_percent"  # legacy (1.3.0), see CONF_VAT_MODE
+CONF_VAT_MODE: Final = "vat_mode"
+CONF_LARGE_FAMILY: Final = "large_family"
+
+VAT_NONE: Final = "none"
+VAT_FULL: Final = "full"
+VAT_AUTO: Final = "auto"
 
 PRICE_SOURCE_NONE: Final = "none"
 PRICE_SOURCE_COOPERNICO: Final = "coopernico_tf"

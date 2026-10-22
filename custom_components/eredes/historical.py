@@ -22,7 +22,13 @@ from homeassistant.const import UnitOfEnergy
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util.unit_conversion import EnergyConverter
 
-from .const import DOMAIN, PRICE_SOURCE_COOPERNICO, PRICE_SOURCE_SENSOR
+from .const import (
+    DOMAIN,
+    PRICE_SOURCE_COOPERNICO,
+    PRICE_SOURCE_SENSOR,
+    VAT_AUTO,
+    VAT_NONE,
+)
 from .tariff_tf import LISBON, async_coopernico_lookup
 
 if TYPE_CHECKING:
@@ -54,7 +60,61 @@ class PriceConfig:
     source: str  # PRICE_SOURCE_SENSOR or PRICE_SOURCE_COOPERNICO
     entity: str | None = None
     cycle: str = "bi_diario"
-    vat_percent: float = 0.0
+    vat_mode: str = VAT_NONE  # VAT_NONE, VAT_FULL (23%) or VAT_AUTO (6%/23%)
+    large_family: bool = False  # 300 instead of 200 kWh at 6% (VAT_AUTO)
+
+
+VAT_REDUCED = 0.06
+VAT_NORMAL = 0.23
+
+
+class VatRule:
+    """VAT on electricity energy in mainland Portugal (BTN up to 6.9 kVA).
+
+    With VAT_AUTO the first 200 kWh per 30 days (300 for large families) pay
+    6% and the rest 23%. The allowance is taken per calendar month (200/30 x
+    days in the month) and consumed in chronological order, hour by hour.
+    """
+
+    def __init__(self, mode: str, large_family: bool = False) -> None:
+        """Initialize the rule."""
+        self.mode = mode
+        self.per_30_days = 300.0 if large_family else 200.0
+        self._month: tuple[int, int] | None = None
+        self._used = 0.0
+
+    def factor(self, hour_start: datetime, kwh: float) -> float:
+        """Account ``kwh`` consumed in this hour and return its VAT multiplier.
+
+        Must be called for every hour in chronological order (also hours that
+        are not priced or already imported), so the allowance is tracked.
+        """
+        if self.mode == VAT_NONE:
+            return 1.0
+        if self.mode != VAT_AUTO:
+            return 1 + VAT_NORMAL
+        local = hour_start.astimezone(LISBON)
+        month = (local.year, local.month)
+        if month != self._month:
+            self._month, self._used = month, 0.0
+        days = _days_in_month(*month)
+        allowance = self.per_30_days / 30 * days
+        reduced = min(max(allowance - self._used, 0.0), kwh)
+        self._used += kwh
+        if kwh <= 0:
+            return 1 + VAT_REDUCED if self._used < allowance else 1 + VAT_NORMAL
+        share = reduced / kwh
+        return 1 + share * VAT_REDUCED + (1 - share) * VAT_NORMAL
+
+
+def _days_in_month(year: int, month: int) -> int:
+    nxt = datetime(year + (month == 12), month % 12 + 1, 1)
+    return (nxt - datetime(year, month, 1)).days
+
+
+def _month_start_naive(moment: datetime) -> datetime:
+    local = moment.astimezone(LISBON)
+    return datetime(local.year, local.month, 1)
 
 
 def _metadata(cpe: str) -> StatisticMetaData:
@@ -115,6 +175,11 @@ async def async_import_historical_data(
     if price:
         cost_after, cost_sum = await _async_last_stat(hass, cost_id)
         start_date = min(start_date, _resume_start(full_start, cost_after))
+        if price.vat_mode == VAT_AUTO and cost_after is not None:
+            # The 6% allowance is per month: re-read the month so far.
+            start_date = max(
+                full_start, min(start_date, _month_start_naive(cost_after))
+            )
 
     all_readings = await _async_fetch_readings(coordinator, start_date)
 
@@ -292,31 +357,39 @@ def _aggregate_hourly_cost(
     price_at: Callable[[datetime], float | None],
     initial_sum: float = 0.0,
     after: datetime | None = None,
+    vat: VatRule | None = None,
 ) -> tuple[list[StatisticData], int]:
     """Price every reading and roll the cost up into hourly statistics.
 
     An hour with any unpriced quarter is skipped entirely (counted in the
-    returned number) rather than stored as a misleadingly low cost.
+    returned number) rather than stored as a misleadingly low cost. VAT is
+    applied per hour; with the 6%/23% rule every hour (also skipped or already
+    imported ones) consumes the monthly allowance, in chronological order.
     """
-    hourly: dict[datetime, float] = {}
+    vat = vat or VatRule(VAT_NONE)
+    net: dict[datetime, float] = {}
+    kwh: dict[datetime, float] = {}
     unpriced: set[datetime] = set()
     for reading in readings:
         hour_start = reading.timestamp.replace(minute=0, second=0, microsecond=0)
+        kwh[hour_start] = kwh.get(hour_start, 0.0) + reading.value_kwh
         if after is not None and hour_start <= after:
             continue
         price = price_at(reading.timestamp)
         if price is None:
             unpriced.add(hour_start)
             continue
-        hourly[hour_start] = hourly.get(hour_start, 0.0) + reading.value_kwh * price
+        net[hour_start] = net.get(hour_start, 0.0) + reading.value_kwh * price
 
     statistics: list[StatisticData] = []
     cumulative = initial_sum
-    for hour_start in sorted(set(hourly) - unpriced):
-        cumulative += hourly[hour_start]
-        statistics.append(
-            StatisticData(start=hour_start, state=hourly[hour_start], sum=cumulative)
-        )
+    for hour_start in sorted(kwh):
+        factor = vat.factor(hour_start, kwh[hour_start])
+        if hour_start not in net or hour_start in unpriced:
+            continue
+        cost = net[hour_start] * factor
+        cumulative += cost
+        statistics.append(StatisticData(start=hour_start, state=cost, sum=cumulative))
     return statistics, len(unpriced)
 
 
@@ -336,7 +409,6 @@ async def _async_build_price_lookup(
             async_get_clientsession(hass),
             {r.timestamp.astimezone(LISBON).year for r in priced},
             price.cycle,
-            price.vat_percent,
         )
         _LOGGER.debug(
             "Coopérnico (%s) prices for %d quarter-hours", price.cycle, len(prices)
@@ -346,14 +418,7 @@ async def _async_build_price_lookup(
     if price.source == PRICE_SOURCE_SENSOR and price.entity:
         start = readings[0].timestamp - timedelta(hours=1)
         end = readings[-1].timestamp + timedelta(hours=1)
-        lookup = await _async_price_lookup(hass, price.entity, start, end)
-        factor = 1 + price.vat_percent / 100
-
-        def with_vat(ts: datetime) -> float | None:
-            value = lookup(ts)
-            return None if value is None else value * factor
-
-        return with_vat, readings
+        return await _async_price_lookup(hass, price.entity, start, end), readings
 
     return (lambda _ts: None), []
 
@@ -379,7 +444,11 @@ async def _async_import_cost(
         return
 
     statistics, unpriced = _aggregate_hourly_cost(
-        readings, price_at, initial_sum, after
+        readings,
+        price_at,
+        initial_sum,
+        after,
+        VatRule(price.vat_mode, price.large_family),
     )
     if unpriced:
         _LOGGER.debug("Skipped %d hours without price data", unpriced)

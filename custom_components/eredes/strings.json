@@ -48,8 +48,9 @@
         "data": {
           "price_source": "Price source",
           "tariff_cycle": "Time-of-use option (Coopérnico)",
-          "vat_percent": "VAT added to the price",
-          "price_entity": "Price sensor (only for 'Price sensor')"
+          "price_entity": "Price sensor (only for 'Price sensor')",
+          "vat_mode": "VAT",
+          "large_family": "Large family (300 kWh at 6%)"
         }
       }
     },
@@ -85,6 +86,13 @@
         "bi_semanal": "Two-rate, weekly cycle",
         "tri_diario": "Three-rate, daily cycle",
         "tri_semanal": "Three-rate, weekly cycle"
+      }
+    },
+    "vat_mode": {
+      "options": {
+        "none": "No VAT",
+        "auto": "6% on the first 200 kWh per 30 days, 23% above (up to 6.9 kVA)",
+        "full": "23% on everything"
       }
     }
   }

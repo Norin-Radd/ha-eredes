@@ -150,7 +150,7 @@ async def test_cost_from_coopernico_data(
         await async_import_historical_data(
             hass,
             coordinator,
-            PriceConfig(source="coopernico_tf", cycle="bi_diario", vat_percent=23),
+            PriceConfig(source="coopernico_tf", cycle="bi_diario", vat_mode="full"),
         )
         await async_wait_recording_done(hass)
 
@@ -159,3 +159,108 @@ async def test_cost_from_coopernico_data(
     )
     expected = (0.13088 + 0.12995) * 1.23  # 1 kWh in each quarter
     assert cost[cost_statistic_id(cpe)][0]["sum"] == pytest.approx(expected, abs=1e-4)
+
+
+def test_vat_auto_splits_monthly_allowance() -> None:
+    """6% on the first 200 kWh/30 days of the month (in order), 23% above."""
+    from custom_components.eredes.historical import (  # noqa: PLC0415
+        VatRule,
+        _aggregate_hourly_cost,
+    )
+
+    def hour(day: int, h: int, kwh: float) -> ConsumptionReading:
+        ts = datetime(2026, 4, day, h, tzinfo=LISBON).astimezone(UTC)
+        return ConsumptionReading(timestamp=ts, value_wh=kwh * 1000)
+
+    # April has 30 days: allowance exactly 200 kWh.
+    readings = [hour(1, 0, 150.0), hour(1, 1, 100.0), hour(2, 0, 10.0)]
+    stats, _ = _aggregate_hourly_cost(readings, lambda _ts: 1.0, vat=VatRule("auto"))
+    assert [round(s["state"], 4) for s in stats] == [
+        round(150 * 1.06, 4),  # all within the allowance
+        round(50 * 1.06 + 50 * 1.23, 4),  # crosses 200 kWh
+        round(10 * 1.23, 4),  # allowance used up
+    ]
+
+    # Already-imported hours still use up the allowance.
+    after = readings[0].timestamp
+    stats, _ = _aggregate_hourly_cost(
+        readings, lambda _ts: 1.0, after=after, vat=VatRule("auto")
+    )
+    assert round(stats[0]["state"], 4) == round(50 * 1.06 + 50 * 1.23, 4)
+
+    # Large families get 300 kWh; a new month restarts the allowance.
+    may = ConsumptionReading(
+        timestamp=datetime(2026, 5, 1, 0, tzinfo=LISBON).astimezone(UTC),
+        value_wh=10_000,
+    )
+    stats, _ = _aggregate_hourly_cost(
+        [*readings, may], lambda _ts: 1.0, vat=VatRule("auto", large_family=True)
+    )
+    assert round(stats[1]["state"], 4) == round(100 * 1.06, 4)
+    assert round(stats[3]["state"], 4) == round(10 * 1.06, 4)
+
+
+async def test_changing_cost_options_clears_the_cost(
+    hass: HomeAssistant,
+    auto_enable_custom_integrations: None,  # noqa: ARG001
+) -> None:
+    """New price/VAT settings delete eredes:cost_* so it is rebuilt."""
+    from homeassistant.components.recorder.models import (  # noqa: PLC0415
+        StatisticMeanType,
+    )
+    from homeassistant.components.recorder.statistics import (  # noqa: PLC0415
+        async_add_external_statistics,
+    )
+    from pytest_homeassistant_custom_component.common import (  # noqa: PLC0415
+        MockConfigEntry,
+    )
+
+    from custom_components.eredes.const import (  # noqa: PLC0415
+        CONF_ACCESS_TOKEN,
+        CONF_CPE,
+        DOMAIN,
+    )
+
+    cpe = "PT0002000012345678AB"
+    stat = cost_statistic_id(cpe)
+    async_add_external_statistics(
+        hass,
+        {
+            "has_mean": False,
+            "has_sum": True,
+            "mean_type": StatisticMeanType.NONE,
+            "name": "E-REDES Cost",
+            "source": DOMAIN,
+            "statistic_id": stat,
+            "unit_class": None,
+            "unit_of_measurement": "EUR",
+        },
+        [{"start": datetime(2026, 1, 1, tzinfo=UTC), "state": 1.0, "sum": 1.0}],
+    )
+    await async_wait_recording_done(hass)
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=2,
+        data={CONF_ACCESS_TOKEN: "x", CONF_CPE: cpe},
+        options={"price_source": "coopernico_tf", "vat_mode": "full"},
+        unique_id=cpe,
+    )
+    entry.add_to_hass(hass)
+    with patch("custom_components.eredes.async_setup_entry", return_value=True):
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            {
+                "price_source": "coopernico_tf",
+                "tariff_cycle": "bi_diario",
+                "vat_mode": "auto",
+                "large_family": False,
+            },
+        )
+        await async_wait_recording_done(hass)
+
+    last = await get_instance(hass).async_add_executor_job(
+        get_last_statistics, hass, 1, stat, True, {"sum"}
+    )
+    assert not last

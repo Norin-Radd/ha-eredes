@@ -11,13 +11,17 @@ from homeassistant.const import Platform
 
 from .const import (
     CONF_ACCESS_TOKEN,
+    CONF_LARGE_FAMILY,
     CONF_PRICE_ENTITY,
     CONF_PRICE_SOURCE,
     CONF_TARIFF_CYCLE,
+    CONF_VAT_MODE,
     CONF_VAT_PERCENT,
     LEGACY_TOKEN_KEYS,
     PRICE_SOURCE_NONE,
     PRICE_SOURCE_SENSOR,
+    VAT_FULL,
+    VAT_NONE,
 )
 from .coordinator import ERedesCoordinator
 from .webhook import async_register_token_webhook
@@ -130,7 +134,9 @@ async def _async_import_historical_data(
             source=source,
             entity=options.get(CONF_PRICE_ENTITY),
             cycle=options.get(CONF_TARIFF_CYCLE, "bi_diario"),
-            vat_percent=float(options.get(CONF_VAT_PERCENT, 0)),
+            vat_mode=options.get(CONF_VAT_MODE)
+            or (VAT_FULL if float(options.get(CONF_VAT_PERCENT, 0)) else VAT_NONE),
+            large_family=bool(options.get(CONF_LARGE_FAMILY, False)),
         )
     )
 

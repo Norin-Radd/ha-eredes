@@ -187,16 +187,18 @@ async def async_run_configured_backfills(
     targets: dict[str, str | None],
     *,
     raise_errors: bool = False,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], dict[str, str]]:
     """Backfill the sensors chosen in the options (``energy``/``cost`` -> entity).
 
     Waits for the recorder first, so statistics just imported are included.
+    Returns the summaries and the targets that failed (to retry later).
     """
     from .historical import cost_statistic_id, statistic_id  # noqa: PLC0415
 
     sources = {"energy": statistic_id(cpe), "cost": cost_statistic_id(cpe)}
     await get_instance(hass).async_block_till_done()
     results: list[dict[str, Any]] = []
+    failed: dict[str, str] = {}
     for kind, target in targets.items():
         if not target:
             continue
@@ -206,4 +208,5 @@ async def async_run_configured_backfills(
             _LOGGER.warning("Could not backfill %s (%s): %s", target, kind, err)
             if raise_errors:
                 raise
-    return results
+            failed[kind] = target
+    return results, failed

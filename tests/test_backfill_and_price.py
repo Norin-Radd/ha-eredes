@@ -306,3 +306,66 @@ async def test_auto_backfill_after_import_and_button(
             "button", "press", {"entity_id": button}, blocking=True
         )
         assert backfill.call_count == 2
+
+
+async def test_auto_backfill_retries_sensor_not_ready(
+    hass: HomeAssistant,
+    auto_enable_custom_integrations: None,  # noqa: ARG001
+) -> None:
+    """A sensor without statistics yet is retried an hour later, alone."""
+    from homeassistant.util import dt as dt_util  # noqa: PLC0415
+    from pytest_homeassistant_custom_component.common import (  # noqa: PLC0415
+        async_fire_time_changed,
+    )
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=2,
+        data={CONF_ACCESS_TOKEN: "x", CONF_CPE: CPE},
+        options={
+            "backfill_energy_entity": "sensor.han_import",
+            "backfill_cost_entity": "sensor.han_import_cost",
+        },
+        unique_id=CPE,
+    )
+    entry.add_to_hass(hass)
+
+    calls: list[str] = []
+
+    async def fake_backfill(_hass: object, _source: str, target: str) -> dict:
+        calls.append(target)
+        if target == "sensor.han_import_cost" and calls.count(target) == 1:
+            msg = "sensor.han_import_cost has no long-term statistics with a sum"
+            raise HomeAssistantError(msg)
+        return {"hours_written": 1}
+
+    with (
+        patch(
+            "custom_components.eredes.coordinator.ERedesClient.get_consumption",
+            new=AsyncMock(side_effect=ERedesConnectionError("offline")),
+        ),
+        patch(
+            "custom_components.eredes.historical.async_import_historical_data",
+            new=AsyncMock(),
+        ),
+        patch(
+            "custom_components.eredes.backfill.async_backfill",
+            side_effect=fake_backfill,
+        ),
+        patch(
+            "custom_components.eredes.coordinator.ERedesCoordinator.token_usable",
+            new=True,
+        ),
+    ):
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        assert sorted(calls) == ["sensor.han_import", "sensor.han_import_cost"]
+
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=61))
+        await hass.async_block_till_done()
+        # Only the cost sensor is retried, and this time it succeeds.
+        assert calls[2:] == ["sensor.han_import_cost"]
+
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=125))
+        await hass.async_block_till_done()
+        assert len(calls) == 3  # nothing left to retry

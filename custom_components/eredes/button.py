@@ -34,7 +34,6 @@ class ERedesBackfillButton(ButtonEntity):
 
     _attr_has_entity_name = True
     _attr_translation_key = "backfill"
-    _attr_name = "Correct history with E-REDES"
     _attr_icon = "mdi:history"
     _attr_entity_category = EntityCategory.CONFIG
 
@@ -48,7 +47,7 @@ class ERedesBackfillButton(ButtonEntity):
 
     async def async_press(self) -> None:
         """Run the backfill for the configured sensors."""
-        results = await async_run_configured_backfills(
+        results, _ = await async_run_configured_backfills(
             self.hass, self._cpe, backfill_targets(self._entry), raise_errors=True
         )
         if not results:

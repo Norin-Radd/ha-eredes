@@ -76,7 +76,6 @@ class ERedesCoopernicoPriceSensor(SensorEntity):
 
     _attr_has_entity_name = True
     _attr_translation_key = SENSOR_COOPERNICO_PRICE
-    _attr_name = "Coopérnico price"
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_suggested_display_precision = 4
     _attr_should_poll = False

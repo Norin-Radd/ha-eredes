@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.event import async_call_later
 
 from .const import (
     CONF_ACCESS_TOKEN,
@@ -166,10 +168,53 @@ async def _async_import_historical_data(
 
     targets = backfill_targets(entry)
     if any(targets.values()):
-        from .backfill import async_run_configured_backfills  # noqa: PLC0415
+        await _async_auto_backfill(hass, entry, coordinator.cpe, targets, attempt=1)
 
-        results = await async_run_configured_backfills(hass, coordinator.cpe, targets)
-        _LOGGER.debug("Automatic backfill: %s", results)
+
+BACKFILL_RETRY_DELAY = timedelta(hours=1)
+BACKFILL_MAX_ATTEMPTS = 6
+
+
+async def _async_auto_backfill(
+    hass: HomeAssistant,
+    entry: ERedesConfigEntry,
+    cpe: str,
+    targets: dict[str, str | None],
+    *,
+    attempt: int,
+) -> None:
+    """Correct the chosen sensors; retry hourly the ones that are not ready.
+
+    A sensor can fail because it has no statistics yet (e.g. the Energy
+    Dashboard's _cost sensor right after it was created): try again later
+    instead of waiting for the next E-REDES login.
+    """
+    from .backfill import async_run_configured_backfills  # noqa: PLC0415
+
+    results, failed = await async_run_configured_backfills(hass, cpe, targets)
+    _LOGGER.debug("Automatic backfill (attempt %d): %s", attempt, results)
+    if not failed:
+        return
+    if attempt >= BACKFILL_MAX_ATTEMPTS:
+        _LOGGER.warning(
+            "Giving up correcting %s after %d attempts; use the button or the "
+            "eredes.backfill_statistics action",
+            ", ".join(failed.values()),
+            attempt,
+        )
+        return
+
+    retry_targets: dict[str, str | None] = dict(failed)
+
+    async def _retry(_now: datetime) -> None:
+        await _async_auto_backfill(hass, entry, cpe, retry_targets, attempt=attempt + 1)
+
+    _LOGGER.info(
+        "Will retry correcting %s in %s",
+        ", ".join(failed.values()),
+        BACKFILL_RETRY_DELAY,
+    )
+    entry.async_on_unload(async_call_later(hass, BACKFILL_RETRY_DELAY, _retry))
 
 
 def backfill_targets(entry: ERedesConfigEntry) -> dict[str, str | None]:

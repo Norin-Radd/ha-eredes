@@ -183,8 +183,9 @@ ficam de fora em vez de contarem como custo zero.
   os valores oficiais, mantendo a continuidade com os dados seguintes do sensor.
   Experimenta primeiro com *Simulação*; pode ser repetida para tapar falhas da HAN.
 - **Correção automática**: nas opções, escolhe o sensor de energia (e o de custo) a
-  corrigir. Depois de cada importação da E-REDES são corrigidos sozinhos; o botão
-  **Corrigir histórico com E-REDES** faz o mesmo a pedido.
+  corrigir. Depois de cada importação da E-REDES são corrigidos sozinhos; se um sensor
+  ainda não tiver estatísticas (ex.: o `_cost` acabado de criar), volta a tentar de hora
+  a hora (até 6 vezes). O botão **Corrigir histórico com E-REDES** faz o mesmo a pedido.
 
 ### Instalar a extensão
 

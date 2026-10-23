@@ -186,7 +186,6 @@ class ERedesTokenExpirySensor(CoordinatorEntity[ERedesCoordinator], SensorEntity
 
     _attr_has_entity_name = True
     _attr_translation_key = SENSOR_TOKEN_EXPIRY
-    _attr_name = "Token expiry"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 

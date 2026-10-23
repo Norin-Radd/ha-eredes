@@ -114,6 +114,18 @@ O resultado fica na estatística **E-REDES Cost (`<CPE>`)**: no Painel de Energi
 escolhe-a em *Utilizar uma entidade que acompanha os custos totais*. Horas sem preço
 ficam de fora em vez de contarem como custo zero.
 
+### Contador em tempo real (HAN) + histórico E-REDES
+
+- **Preço Coopérnico** (sensor, com a origem *Coopérnico Único*): preço do quarto de
+  hora atual em €/kWh, com os preços de hoje e amanhã nos atributos. Com o IVA
+  automático e um *sensor de energia do contador em tempo real* nas opções, passa de
+  6% para 23% no momento em que o consumo do mês ultrapassa 200 kWh/30 dias.
+  No Painel de Energia: *Utilizar uma entidade com o preço atual*.
+- **Ação `eredes.backfill_statistics`**: reescreve o histórico horário de um sensor
+  (ex.: energia importada da HAN, ou o seu `_cost`) até à última hora da E-REDES com
+  os valores oficiais, mantendo a continuidade com os dados seguintes do sensor.
+  Experimenta primeiro com *Simulação*; pode ser repetida para tapar falhas da HAN.
+
 ### Instalar a extensão
 
 1. `chrome://extensions` → ativar **Modo de programador** → **Carregar sem

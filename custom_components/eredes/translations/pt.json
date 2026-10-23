@@ -50,7 +50,8 @@
           "tariff_cycle": "Opção horária (Coopérnico)",
           "price_entity": "Sensor de preço (só para 'Sensor de preço')",
           "vat_mode": "IVA",
-          "large_family": "Família numerosa (300 kWh a 6%)"
+          "large_family": "Família numerosa (300 kWh a 6%)",
+          "live_energy_entity": "Sensor de energia do contador em tempo real (ex.: HAN) – para o IVA 6%/23% do preço atual"
         }
       }
     },
@@ -68,6 +69,9 @@
       },
       "token_expiry": {
         "name": "Expiração do token"
+      },
+      "coopernico_price": {
+        "name": "Preço Coopérnico"
       }
     }
   },
@@ -93,6 +97,36 @@
         "none": "Sem IVA",
         "auto": "6% nos primeiros 200 kWh por 30 dias, 23% no resto (até 6,9 kVA)",
         "full": "23% em tudo"
+      }
+    },
+    "backfill_kind": {
+      "options": {
+        "energy": "Energia (E-REDES Energy)",
+        "cost": "Custo (E-REDES Cost)"
+      }
+    }
+  },
+  "services": {
+    "backfill_statistics": {
+      "name": "Copiar histórico E-REDES para um sensor",
+      "description": "Reescreve as estatísticas horárias do sensor escolhido até à última hora da E-REDES com os valores oficiais, mantendo a continuidade com os dados seguintes do sensor. Serve para dar a um sensor em tempo real (ex.: HAN) o histórico completo no Painel de Energia. Experimenta primeiro com 'Simulação'.",
+      "fields": {
+        "entity_id": {
+          "name": "Sensor de destino",
+          "description": "ex.: o sensor de energia importada da HAN, ou o seu sensor _cost"
+        },
+        "kind": {
+          "name": "O que copiar",
+          "description": "Energia (kWh) ou custo"
+        },
+        "cpe": {
+          "name": "CPE",
+          "description": "Só é preciso se houver mais de uma entrada E-REDES"
+        },
+        "dry_run": {
+          "name": "Simulação",
+          "description": "Só mostra o que seria escrito, sem alterar nada"
+        }
       }
     }
   }

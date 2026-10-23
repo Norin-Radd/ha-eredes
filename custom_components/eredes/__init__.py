@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
+from homeassistant.helpers import config_validation as cv
 
 from .const import (
     CONF_ACCESS_TOKEN,
@@ -17,6 +18,7 @@ from .const import (
     CONF_TARIFF_CYCLE,
     CONF_VAT_MODE,
     CONF_VAT_PERCENT,
+    DOMAIN,
     LEGACY_TOKEN_KEYS,
     PRICE_SOURCE_NONE,
     PRICE_SOURCE_SENSOR,
@@ -24,16 +26,26 @@ from .const import (
     VAT_NONE,
 )
 from .coordinator import ERedesCoordinator
+from .services import async_register_services
 from .webhook import async_register_token_webhook
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.typing import ConfigType
 
     from .eredes_api import ERedesClient
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
+    """Set up the integration (actions are registered once, not per entry)."""
+    async_register_services(hass)
+    return True
 
 
 @dataclass
@@ -57,8 +69,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ERedesConfigEntry) -> bo
 
     coordinator = ERedesCoordinator(hass, entry)
 
-    # Fetch initial data (never fails on an expired token — see coordinator)
-    await coordinator.async_config_entry_first_refresh()
+    # Fetch initial data. A failure (E-REDES down) must not block the entry:
+    # the webhook and the live price sensor do not depend on the E-REDES API,
+    # and the coordinator keeps retrying on its own schedule.
+    await coordinator.async_refresh()
 
     # Store runtime data
     entry.runtime_data = ERedesData(

@@ -50,7 +50,8 @@
           "tariff_cycle": "Time-of-use option (Coopérnico)",
           "price_entity": "Price sensor (only for 'Price sensor')",
           "vat_mode": "VAT",
-          "large_family": "Large family (300 kWh at 6%)"
+          "large_family": "Large family (300 kWh at 6%)",
+          "live_energy_entity": "Real-time meter energy sensor (e.g. HAN) – for the live price's 6%/23% VAT"
         }
       }
     },
@@ -68,6 +69,9 @@
       },
       "token_expiry": {
         "name": "Token expiry"
+      },
+      "coopernico_price": {
+        "name": "Coopérnico price"
       }
     }
   },
@@ -93,6 +97,36 @@
         "none": "No VAT",
         "auto": "6% on the first 200 kWh per 30 days, 23% above (up to 6.9 kVA)",
         "full": "23% on everything"
+      }
+    },
+    "backfill_kind": {
+      "options": {
+        "energy": "Energy (E-REDES Energy)",
+        "cost": "Cost (E-REDES Cost)"
+      }
+    }
+  },
+  "services": {
+    "backfill_statistics": {
+      "name": "Copy E-REDES history into a sensor",
+      "description": "Rewrites the chosen sensor's hourly statistics up to the last E-REDES hour with the official E-REDES values, keeping continuity with the sensor's later data. Use it to give a real-time (e.g. HAN) sensor the full history in the Energy Dashboard. Try with 'Dry run' first.",
+      "fields": {
+        "entity_id": {
+          "name": "Target sensor",
+          "description": "e.g. the HAN import energy sensor, or its _cost sensor"
+        },
+        "kind": {
+          "name": "What to copy",
+          "description": "Energy (kWh) or cost"
+        },
+        "cpe": {
+          "name": "CPE",
+          "description": "Only needed with more than one E-REDES entry"
+        },
+        "dry_run": {
+          "name": "Dry run",
+          "description": "Only report what would be written"
+        }
       }
     }
   }

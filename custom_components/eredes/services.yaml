@@ -1,0 +1,22 @@
+backfill_statistics:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          domain: sensor
+    kind:
+      default: energy
+      selector:
+        select:
+          options:
+            - energy
+            - cost
+          translation_key: backfill_kind
+    cpe:
+      selector:
+        text:
+    dry_run:
+      default: true
+      selector:
+        boolean:

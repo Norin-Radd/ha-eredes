@@ -22,6 +22,7 @@ from .const import (
     CONF_ACCESS_TOKEN,
     CONF_CPE,
     CONF_LARGE_FAMILY,
+    CONF_LIVE_ENERGY_ENTITY,
     CONF_PRICE_ENTITY,
     CONF_PRICE_SOURCE,
     CONF_TARIFF_CYCLE,
@@ -300,6 +301,16 @@ class ERedesOptionsFlow(OptionsFlowWithReload):
                     CONF_LARGE_FAMILY,
                     default=bool(options.get(CONF_LARGE_FAMILY, False)),
                 ): selector.BooleanSelector(),
+                vol.Optional(
+                    CONF_LIVE_ENERGY_ENTITY,
+                    description={
+                        "suggested_value": options.get(CONF_LIVE_ENERGY_ENTITY)
+                    },
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(
+                        domain="sensor", device_class="energy"
+                    )
+                ),
                 vol.Optional(
                     CONF_PRICE_ENTITY,
                     description={"suggested_value": options.get(CONF_PRICE_ENTITY)},

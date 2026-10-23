@@ -14,6 +14,8 @@ CONF_TARIFF_CYCLE: Final = "tariff_cycle"
 CONF_VAT_PERCENT: Final = "vat_percent"  # legacy (1.3.0), see CONF_VAT_MODE
 CONF_VAT_MODE: Final = "vat_mode"
 CONF_LARGE_FAMILY: Final = "large_family"
+CONF_LIVE_ENERGY_ENTITY: Final = "live_energy_entity"
+SENSOR_COOPERNICO_PRICE: Final = "coopernico_price"
 
 VAT_NONE: Final = "none"
 VAT_FULL: Final = "full"

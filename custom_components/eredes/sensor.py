@@ -16,8 +16,21 @@ from homeassistant.const import EntityCategory, UnitOfEnergy, UnitOfPower
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, SENSOR_ENERGY, SENSOR_POWER, SENSOR_TOKEN_EXPIRY
+from .const import (
+    CONF_LARGE_FAMILY,
+    CONF_LIVE_ENERGY_ENTITY,
+    CONF_PRICE_SOURCE,
+    CONF_TARIFF_CYCLE,
+    CONF_VAT_MODE,
+    DOMAIN,
+    PRICE_SOURCE_COOPERNICO,
+    SENSOR_ENERGY,
+    SENSOR_POWER,
+    SENSOR_TOKEN_EXPIRY,
+    VAT_NONE,
+)
 from .coordinator import ERedesCoordinator, ERedesCoordinatorData
+from .price_sensor import ERedesCoopernicoPriceSensor
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -60,7 +73,7 @@ SENSOR_DESCRIPTIONS: tuple[ERedesSensorEntityDescription, ...] = (
 
 
 async def async_setup_entry(
-    _hass: HomeAssistant,
+    hass: HomeAssistant,
     entry: ERedesConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
@@ -71,6 +84,20 @@ async def async_setup_entry(
         ERedesSensor(coordinator, description) for description in SENSOR_DESCRIPTIONS
     ]
     entities.append(ERedesTokenExpirySensor(coordinator))
+
+    options = entry.options
+    if options.get(CONF_PRICE_SOURCE) == PRICE_SOURCE_COOPERNICO:
+        entities.append(
+            ERedesCoopernicoPriceSensor(
+                hass,
+                cpe=coordinator.cpe,
+                device_info=_device_info(coordinator),
+                cycle=options.get(CONF_TARIFF_CYCLE, "bi_diario"),
+                vat_mode=options.get(CONF_VAT_MODE, VAT_NONE),
+                large_family=bool(options.get(CONF_LARGE_FAMILY, False)),
+                energy_entity=options.get(CONF_LIVE_ENERGY_ENTITY),
+            )
+        )
     async_add_entities(entities)
 
 

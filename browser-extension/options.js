@@ -1,23 +1,34 @@
-const input = document.getElementById("url");
+const box = document.getElementById("urls");
 const msg = document.getElementById("msg");
 
-chrome.storage.sync.get({ webhookUrl: "" }).then(({ webhookUrl }) => (input.value = webhookUrl));
+chrome.storage.sync.get({ webhookUrls: [], webhookUrl: "" }).then(({ webhookUrls, webhookUrl }) => {
+  box.value = (webhookUrls.length ? webhookUrls : webhookUrl ? [webhookUrl] : []).join("\n");
+});
 
 document.getElementById("save").onclick = async () => {
-  let url;
-  try {
-    url = new URL(input.value.trim());
-    if (!/^https?:$/.test(url.protocol) || !url.pathname.includes("/api/webhook/")) throw new Error();
-  } catch {
-    msg.textContent = "URL inválido: tem de ser http(s)://…/api/webhook/<id>.";
+  const lines = box.value.split("\n").map((l) => l.trim()).filter(Boolean);
+  const urls = [];
+  for (const line of lines) {
+    try {
+      const u = new URL(line);
+      if (!/^https?:$/.test(u.protocol) || !u.pathname.includes("/api/webhook/")) throw new Error();
+      urls.push(u.href);
+    } catch {
+      msg.textContent = `URL inválido: ${line}\nTem de ser http(s)://…/api/webhook/<id>.`;
+      return;
+    }
+  }
+  if (!urls.length) {
+    msg.textContent = "Cola pelo menos um URL.";
     return;
   }
-  const granted = await chrome.permissions.request({ origins: [`${url.origin}/*`] });
+  const origins = [...new Set(urls.map((u) => `${new URL(u).origin}/*`))];
+  const granted = await chrome.permissions.request({ origins });
   if (!granted) {
-    msg.textContent = "Sem autorização para contactar esse endereço.";
+    msg.textContent = "Sem autorização para contactar esses endereços.";
     return;
   }
-  await chrome.storage.sync.set({ webhookUrl: url.href });
-  await chrome.storage.local.remove("lastSent");
-  msg.textContent = "Guardado. Faz login no Balcão Digital para enviar o primeiro token.";
+  await chrome.storage.sync.set({ webhookUrls: urls, webhookUrl: "" });
+  await chrome.storage.local.remove(["lastSent", "sentTo"]);
+  msg.textContent = `Guardado (${urls.length} Home Assistant). Faz login no Balcão Digital para enviar o token.`;
 };

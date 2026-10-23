@@ -6,22 +6,23 @@
 <style>
   :root { color-scheme: light dark; --fg:#1f2937; --muted:#6b7280; --bg:#fff; --accent:#0e7490; }
   @media (prefers-color-scheme: dark) { :root { --fg:#e5e7eb; --muted:#9ca3af; --bg:#111827; --accent:#22d3ee; } }
-  body { font: 15px system-ui, sans-serif; color: var(--fg); background: var(--bg); max-width: 640px; margin: 32px auto; padding: 0 16px; }
-  input { width: 100%; padding: 8px; box-sizing: border-box; }
+  body { font: 15px system-ui, sans-serif; color: var(--fg); background: var(--bg); max-width: 680px; margin: 32px auto; padding: 0 16px; }
+  textarea { width: 100%; min-height: 90px; padding: 8px; box-sizing: border-box; font: 13px ui-monospace, monospace; }
   button { margin-top: 10px; padding: 8px 16px; border: 0; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; }
   p, li { color: var(--muted); }
+  #msg { white-space: pre-line; color: var(--fg); }
 </style>
 </head>
 <body>
   <h1>E-REDES → Home Assistant</h1>
-  <label for="url">URL do webhook</label>
-  <input id="url" placeholder="http://homeassistant.local:8123/api/webhook/…">
+  <label for="urls">URLs dos webhooks (um por linha, um por cada Home Assistant)</label>
+  <textarea id="urls" placeholder="https://casa1.exemplo/api/webhook/…&#10;https://casa2.exemplo/api/webhook/…"></textarea>
   <button id="save">Guardar</button>
   <p id="msg"></p>
   <ol>
-    <li>O caminho do webhook aparece numa notificação no Home Assistant depois de instalares a versão 1.1.0 da integração.</li>
-    <li>Junta-o ao endereço do teu HA, cola aqui e guarda (o Chrome pede autorização para esse endereço).</li>
-    <li>A partir daí basta fazeres login no Balcão Digital: o token é enviado sozinho.</li>
+    <li>Cada Home Assistant mostra o caminho do seu webhook numa notificação quando adicionas a integração E-REDES.</li>
+    <li>Junta cada caminho ao endereço do respetivo HA e cola um por linha. Ao guardar, o browser pede autorização para cada endereço.</li>
+    <li>Depois basta fazeres login no Balcão Digital: o token é enviado para todos.</li>
   </ol>
   <script src="options.js"></script>
 </body>

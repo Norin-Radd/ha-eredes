@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "E-REDES → Home Assistant",
-  "version": "1.0.0",
-  "description": "Depois de fazeres login no Balcão Digital E-REDES, envia o token (cookie aat) para o webhook da integração E-REDES no Home Assistant.",
+  "version": "1.1.0",
+  "description": "Depois de fazeres login no Balcão Digital E-REDES, envia o token (cookie aat) para os webhooks da integração E-REDES no Home Assistant.",
   "permissions": ["cookies", "storage"],
   "host_permissions": ["https://balcaodigital.e-redes.pt/*"],
   "optional_host_permissions": ["http://*/*", "https://*/*"],

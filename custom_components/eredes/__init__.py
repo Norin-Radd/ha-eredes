@@ -12,6 +12,8 @@ from homeassistant.helpers import config_validation as cv
 
 from .const import (
     CONF_ACCESS_TOKEN,
+    CONF_BACKFILL_COST_ENTITY,
+    CONF_BACKFILL_ENERGY_ENTITY,
     CONF_LARGE_FAMILY,
     CONF_PRICE_ENTITY,
     CONF_PRICE_SOURCE,
@@ -37,7 +39,7 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.BUTTON, Platform.SENSOR]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -160,3 +162,19 @@ async def _async_import_historical_data(
         _LOGGER.debug("Historical data import completed")
     except Exception:
         _LOGGER.exception("Failed to import historical data")
+        return
+
+    targets = backfill_targets(entry)
+    if any(targets.values()):
+        from .backfill import async_run_configured_backfills  # noqa: PLC0415
+
+        results = await async_run_configured_backfills(hass, coordinator.cpe, targets)
+        _LOGGER.debug("Automatic backfill: %s", results)
+
+
+def backfill_targets(entry: ERedesConfigEntry) -> dict[str, str | None]:
+    """Sensors to correct with E-REDES data after each import (options)."""
+    return {
+        "energy": entry.options.get(CONF_BACKFILL_ENERGY_ENTITY),
+        "cost": entry.options.get(CONF_BACKFILL_COST_ENTITY),
+    }

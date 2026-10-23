@@ -179,3 +179,31 @@ async def async_backfill(
         async_import_statistics(hass, tgt_meta, statistics)
         _LOGGER.info("Backfilled %s from %s: %s", target_id, source_id, summary)
     return summary
+
+
+async def async_run_configured_backfills(
+    hass: HomeAssistant,
+    cpe: str,
+    targets: dict[str, str | None],
+    *,
+    raise_errors: bool = False,
+) -> list[dict[str, Any]]:
+    """Backfill the sensors chosen in the options (``energy``/``cost`` -> entity).
+
+    Waits for the recorder first, so statistics just imported are included.
+    """
+    from .historical import cost_statistic_id, statistic_id  # noqa: PLC0415
+
+    sources = {"energy": statistic_id(cpe), "cost": cost_statistic_id(cpe)}
+    await get_instance(hass).async_block_till_done()
+    results: list[dict[str, Any]] = []
+    for kind, target in targets.items():
+        if not target:
+            continue
+        try:
+            results.append(await async_backfill(hass, sources[kind], target))
+        except HomeAssistantError as err:
+            _LOGGER.warning("Could not backfill %s (%s): %s", target, kind, err)
+            if raise_errors:
+                raise
+    return results

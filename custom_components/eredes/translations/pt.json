@@ -51,7 +51,9 @@
           "price_entity": "Sensor de preço (só para 'Sensor de preço')",
           "vat_mode": "IVA",
           "large_family": "Família numerosa (300 kWh a 6%)",
-          "live_energy_entity": "Sensor de energia do contador em tempo real (ex.: HAN) – para o IVA 6%/23% do preço atual"
+          "live_energy_entity": "Sensor de energia do contador em tempo real (ex.: HAN) – para o IVA 6%/23% do preço atual",
+          "backfill_energy_entity": "Corrigir automaticamente este sensor de energia com a E-REDES (ex.: importação da HAN)",
+          "backfill_cost_entity": "Corrigir automaticamente este sensor de custo com o E-REDES Cost (ex.: _cost da HAN)"
         }
       }
     },
@@ -72,6 +74,11 @@
       },
       "coopernico_price": {
         "name": "Preço Coopérnico"
+      }
+    },
+    "button": {
+      "backfill": {
+        "name": "Corrigir histórico com E-REDES"
       }
     }
   },

@@ -20,6 +20,8 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .const import (
     BASE_URL,
     CONF_ACCESS_TOKEN,
+    CONF_BACKFILL_COST_ENTITY,
+    CONF_BACKFILL_ENERGY_ENTITY,
     CONF_CPE,
     CONF_LARGE_FAMILY,
     CONF_LIVE_ENERGY_ENTITY,
@@ -310,6 +312,24 @@ class ERedesOptionsFlow(OptionsFlowWithReload):
                     selector.EntitySelectorConfig(
                         domain="sensor", device_class="energy"
                     )
+                ),
+                vol.Optional(
+                    CONF_BACKFILL_ENERGY_ENTITY,
+                    description={
+                        "suggested_value": options.get(CONF_BACKFILL_ENERGY_ENTITY)
+                    },
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(
+                        domain="sensor", device_class="energy"
+                    )
+                ),
+                vol.Optional(
+                    CONF_BACKFILL_COST_ENTITY,
+                    description={
+                        "suggested_value": options.get(CONF_BACKFILL_COST_ENTITY)
+                    },
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
                 ),
                 vol.Optional(
                     CONF_PRICE_ENTITY,

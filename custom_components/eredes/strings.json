@@ -51,7 +51,9 @@
           "price_entity": "Price sensor (only for 'Price sensor')",
           "vat_mode": "VAT",
           "large_family": "Large family (300 kWh at 6%)",
-          "live_energy_entity": "Real-time meter energy sensor (e.g. HAN) – for the live price's 6%/23% VAT"
+          "live_energy_entity": "Real-time meter energy sensor (e.g. HAN) – for the live price's 6%/23% VAT",
+          "backfill_energy_entity": "Automatically correct this energy sensor with E-REDES (e.g. HAN import)",
+          "backfill_cost_entity": "Automatically correct this cost sensor with E-REDES Cost (e.g. HAN _cost)"
         }
       }
     },
@@ -72,6 +74,11 @@
       },
       "coopernico_price": {
         "name": "Coopérnico price"
+      }
+    },
+    "button": {
+      "backfill": {
+        "name": "Correct history with E-REDES"
       }
     }
   },

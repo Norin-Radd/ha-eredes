@@ -22,8 +22,8 @@ from pytest_homeassistant_custom_component.components.recorder.common import (
 )
 
 from custom_components.eredes.backfill import build_backfill
-from custom_components.eredes.eredes_api import ERedesConnectionError
 from custom_components.eredes.const import CONF_ACCESS_TOKEN, CONF_CPE, DOMAIN
+from custom_components.eredes.eredes_api import ERedesConnectionError
 from custom_components.eredes.historical import statistic_id
 from custom_components.eredes.price_sensor import (
     monthly_allowance_kwh,
@@ -252,3 +252,57 @@ async def test_live_price_switches_vat_at_the_allowance(
         state = hass.states.get(entity_id)
         assert float(state.state) == pytest.approx(0.123)
         assert state.attributes["month_kwh"] == pytest.approx(300.0)
+
+
+async def test_auto_backfill_after_import_and_button(
+    hass: HomeAssistant,
+    auto_enable_custom_integrations: None,  # noqa: ARG001
+) -> None:
+    """Configured sensors are corrected after each import and by the button."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=2,
+        data={CONF_ACCESS_TOKEN: "x", CONF_CPE: CPE},
+        options={
+            "backfill_energy_entity": "sensor.han_import",
+            "backfill_cost_entity": "sensor.han_import_cost",
+        },
+        unique_id=CPE,
+    )
+    entry.add_to_hass(hass)
+    backfill = AsyncMock(return_value={"hours_written": 1})
+    with (
+        patch(
+            "custom_components.eredes.coordinator.ERedesClient.get_consumption",
+            new=AsyncMock(side_effect=ERedesConnectionError("offline")),
+        ),
+        patch(
+            "custom_components.eredes.historical.async_import_historical_data",
+            new=AsyncMock(),
+        ),
+        patch("custom_components.eredes.backfill.async_backfill", new=backfill),
+        patch(
+            "custom_components.eredes.coordinator.ERedesCoordinator.token_usable",
+            new=True,
+        ),
+    ):
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+        # After the (mocked) import: both sensors, from the right statistics.
+        called = {(c.args[1], c.args[2]) for c in backfill.call_args_list}
+        assert called == {
+            ("eredes:energy_345678ab", "sensor.han_import"),
+            ("eredes:cost_345678ab", "sensor.han_import_cost"),
+        }
+
+        backfill.reset_mock()
+        button = next(
+            s.entity_id
+            for s in hass.states.async_all("button")
+            if s.entity_id.startswith("button.e_redes")
+        )
+        await hass.services.async_call(
+            "button", "press", {"entity_id": button}, blocking=True
+        )
+        assert backfill.call_count == 2

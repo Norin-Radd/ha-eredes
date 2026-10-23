@@ -125,6 +125,9 @@ ficam de fora em vez de contarem como custo zero.
   (ex.: energia importada da HAN, ou o seu `_cost`) até à última hora da E-REDES com
   os valores oficiais, mantendo a continuidade com os dados seguintes do sensor.
   Experimenta primeiro com *Simulação*; pode ser repetida para tapar falhas da HAN.
+- **Correção automática**: nas opções, escolhe o sensor de energia (e o de custo) a
+  corrigir. Depois de cada importação da E-REDES são corrigidos sozinhos; o botão
+  **Corrigir histórico com E-REDES** faz o mesmo a pedido.
 
 ### Instalar a extensão
 

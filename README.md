@@ -6,6 +6,63 @@
 
 A Home Assistant custom integration to fetch energy consumption data from [E-REDES](https://balcaodigital.e-redes.pt) (Portuguese electricity distribution network operator).
 
+## Guia rápido deste fork (PT)
+
+### O que faz
+
+1. **Consumos oficiais** — vai buscar à E-REDES o consumo de 15 em 15 minutos (com ~1 dia
+   de atraso) e guarda-o como histórico (*E-REDES Energy*). Da primeira vez traz o último ano.
+2. **Custo com o teu tarifário** — calcula o custo de cada quarto de hora com o preço
+   indexado Coopérnico Único (dados de [dados.tiagofelicia.pt](https://dados.tiagofelicia.pt))
+   e o IVA a 6% nos primeiros 200 kWh do mês e 23% no resto (*E-REDES Cost*).
+3. **Preço em tempo real** — sensor **Preço Coopérnico** com o preço do quarto de hora
+   atual; com um contador em tempo real (HAN) passa sozinho de 6% para 23% de IVA quando
+   o consumo do mês ultrapassa o limite.
+4. **Corrige o contador em tempo real** — o Painel de Energia usa a HAN no dia a dia;
+   quando chegam dados da E-REDES, as horas passadas são substituídas pelos valores
+   oficiais (buracos e picos da HAN desaparecem).
+
+A única coisa manual é o **login no Balcão Digital** (tem CAPTCHA). A extensão do browser
+envia o token ao Home Assistant e o resto é automático. Um login por semana chega.
+
+### Como pôr a funcionar
+
+1. **Instalar** — HACS → repositórios personalizados → este repositório (tipo
+   *Integration*) → *Download* → reiniciar o Home Assistant.
+2. **Adicionar a integração** (só da primeira vez) — login no Balcão Digital → F12 →
+   *Application → Cookies* → copiar o `aat` → *Dispositivos e Serviços → Adicionar
+   integração → E-REDES* → colar o token e o CPE. Aparece uma notificação com o caminho do
+   webhook.
+3. **Extensão do browser** (só da primeira vez) — `chrome://extensions` → *Modo de
+   programador* → *Carregar sem compactação* → pasta `browser-extension`. Nas opções, colar
+   `https://<o-teu-ha>/api/webhook/<id>` (um por linha, se tiveres vários HA).
+   Se o HA estiver atrás de um SSO (ex.: Authelia), abre uma exceção para `/api/webhook/`.
+4. **Opções da integração** (roda dentada):
+   - *Origem do preço*: Coopérnico Único (dados Tiago Felícia)
+   - *Opção horária*: a do teu contrato
+   - *IVA*: 6% nos primeiros 200 kWh / 23% no resto (ou *Família numerosa*: 300 kWh)
+   - *Sensor de energia do contador em tempo real*: o sensor da HAN (se tiveres)
+   - *Corrigir automaticamente*: o sensor de energia da HAN e o seu sensor `_cost`
+5. **Painel de Energia**
+   - **Com HAN**: *Energia importada da rede* = sensor da HAN; *Custos* = *Utilizar uma
+     entidade com preço atual* → **Preço Coopérnico**.
+   - **Sem HAN**: *Energia importada da rede* = **E-REDES Energy (`<CPE>`)**; *Custos* =
+     *Utilizar uma entidade que rastreie os custos totais* → **E-REDES Cost (`<CPE>`)**.
+     Não uses o sensor *Energia Diária* no Painel de Energia.
+
+### No dia a dia
+
+- Faz login no Balcão Digital de vez em quando; o ícone da extensão fica **OK**.
+- Para forçar a correção do histórico: botão **Corrigir histórico com E-REDES**.
+- Lembrete de login: automação com o sensor **Token expiry** (exemplo mais abaixo).
+- Se o Spook disser que as estatísticas `eredes:` estão "órfãs", escolhe **Ignorar** — não
+  as apagues (se apagares, recarrega a integração com um token válido e são recriadas).
+- Antes de ativares a correção automática pela primeira vez, faz uma cópia de segurança:
+  ela reescreve o histórico do sensor da HAN.
+
+Os detalhes de cada funcionalidade estão na secção
+[Fork: token entregue por webhook](#fork-token-entregue-por-webhook).
+
 ## Features
 
 - Fetches 15-minute interval energy consumption data
